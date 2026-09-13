@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Despensa &amp; Refeições</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 24px 16px 60px;
+  background: #efece2;
+  font-family: 'Inter', sans-serif;
+}
+
+#nutri-root {
+  --ink: #1b1b18;
+  --ink-soft: #55524a;
+  --navy: #1f3864;
+  --caramel: #96602e;
+  --sage: #45624a;
+  --rust: #a83c30;
+  --paper: #fbfaf6;
+  --paper-2: #f2efe6;
+  --line: #d9d3c3;
+
+  color: var(--ink);
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+#nutri-root .masthead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 4px 2px 14px;
+  border-bottom: 2px solid var(--ink);
+}
+#nutri-root .masthead h1 {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+#nutri-root .masthead .tagline {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+#nutri-root .tabs { display: flex; gap: 2px; margin-top: 10px; }
+#nutri-root .tab-btn {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 10px 14px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+  border-radius: 3px 3px 0 0;
+  position: relative;
+  top: 1px;
+}
+#nutri-root .tab-btn.active { background: var(--paper); color: var(--ink); border-bottom: 1px solid var(--paper); }
+#nutri-root .tab-btn[data-tab="products"].active { box-shadow: inset 0 3px 0 var(--navy); }
+#nutri-root .tab-btn[data-tab="build"].active { box-shadow: inset 0 3px 0 var(--caramel); }
+#nutri-root .tab-btn[data-tab="saved"].active { box-shadow: inset 0 3px 0 var(--sage); }
+
+#nutri-root .panel { border: 1px solid var(--line); background: var(--paper); padding: 22px 22px 24px; min-height: 320px; }
+#nutri-root .view { display: none; }
+#nutri-root .view.active { display: block; }
+
+#nutri-root h2.section-title { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+#nutri-root p.section-hint { color: var(--ink-soft); font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
+
+#nutri-root .product-card { border: 1px solid var(--line); border-left: 3px solid var(--navy); padding: 12px 14px; margin-bottom: 8px; background: var(--paper); }
+#nutri-root .product-card .p-head { display: flex; justify-content: space-between; align-items: baseline; }
+#nutri-root .product-card .p-name { font-weight: 600; font-size: 14.5px; }
+#nutri-root .product-card .p-base { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); }
+#nutri-root .p-nutrients { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-soft); margin-top: 6px; line-height: 1.6; }
+
+#nutri-root .btn {
+  font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px;
+  padding: 9px 16px; border: 1px solid var(--ink); background: var(--ink);
+  color: var(--paper); cursor: pointer; border-radius: 3px;
+}
+#nutri-root .btn:hover { opacity: 0.88; }
+#nutri-root .btn.secondary { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+#nutri-root .btn.navy { background: var(--navy); border-color: var(--navy); }
+#nutri-root .btn.caramel { background: var(--caramel); border-color: var(--caramel); }
+#nutri-root .btn.sage { background: var(--sage); border-color: var(--sage); }
+#nutri-root .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#nutri-root .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-top: 14px; }
+#nutri-root label.field-label {
+  font-size: 11.5px; font-weight: 600; color: var(--ink-soft); display: block;
+  margin-bottom: 4px; font-family: 'IBM Plex Mono', monospace; text-transform: lowercase;
+}
+#nutri-root input[type=text], #nutri-root input[type=number], #nutri-root select {
+  width: 100%; padding: 8px 9px; border: 1px solid var(--line); background: var(--paper);
+  font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink); border-radius: 2px;
+}
+#nutri-root input:focus, #nutri-root select:focus { outline: 2px solid var(--navy); outline-offset: 1px; }
+
+#nutri-root details.add-product { margin-top: 18px; border-top: 1px dashed var(--line); padding-top: 14px; }
+#nutri-root summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--navy); }
+
+#nutri-root .add-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 18px; }
+#nutri-root .add-row .grow { flex: 1; }
+#nutri-root .add-row .qty { width: 110px; }
+
+#nutri-root table.nutri-table { width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; margin-top: 10px; }
+#nutri-root table.nutri-table th {
+  text-align: left; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  color: var(--paper); background: var(--ink); padding: 7px 8px;
+}
+#nutri-root table.nutri-table th:not(:first-child), #nutri-root table.nutri-table td:not(:first-child) { text-align: right; }
+#nutri-root table.nutri-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+#nutri-root table.nutri-table tr.sub td:first-child { padding-left: 20px; color: var(--ink-soft); }
+#nutri-root table.nutri-table tr.total td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: none; }
+
+#nutri-root .meal-items { margin-top: 4px; }
+#nutri-root .meal-item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+#nutri-root .meal-item-row .mi-name { font-weight: 600; }
+#nutri-root .meal-item-row .mi-qty { font-family: 'IBM Plex Mono', monospace; color: var(--ink-soft); font-size: 12px; }
+#nutri-root .mi-remove { background: none; border: none; color: var(--rust); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+
+#nutri-root .empty-note { color: var(--ink-soft); font-size: 13px; font-style: italic; padding: 10px 0; }
+
+#nutri-root .save-row { display: flex; gap: 10px; margin-top: 18px; align-items: flex-end; }
+#nutri-root .save-row .grow { flex: 1; }
+
+#nutri-root .meal-card { border: 1px solid var(--line); border-left: 3px solid var(--sage); margin-bottom: 10px; background: var(--paper); }
+#nutri-root .meal-card-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; cursor: pointer; }
+#nutri-root .meal-card-head .mc-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 15px; }
+#nutri-root .meal-card-head .mc-kcal { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); }
+#nutri-root .meal-card-body { display: none; padding: 0 14px 14px; border-top: 1px solid var(--line); }
+#nutri-root .meal-card-body.open { display: block; }
+#nutri-root .meal-card-body .mc-item { font-size: 12.5px; color: var(--ink-soft); padding: 3px 0; }
+#nutri-root .mc-delete { background: none; border: none; color: var(--rust); font-family: 'IBM Plex Mono', monospace; font-size: 11px; cursor: pointer; padding: 0; margin-top: 10px; }
+
+#nutri-root .status-msg { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--sage); margin-top: 10px; min-height: 16px; }
+#nutri-root .status-msg.err { color: var(--rust); }
+
+#nutri-root .footer-note { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-soft); margin-top: 10px; padding: 0 4px; }
+
+#nutri-root .api-banner {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  background: #fbeee0;
+  border: 1px solid var(--caramel);
+  color: var(--caramel);
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  display: none;
+}
+#nutri-root .api-banner.show { display: block; }
+</style>
+</head>
+<body>
+
+<div id="nutri-root">
+  <div class="masthead">
+    <h1>Despensa &amp; Refeições</h1>
+    <div class="tagline">tabela nutricional pessoal</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="products">Produtos</button>
+    <button class="tab-btn" data-tab="build">Nova refeição</button>
+    <button class="tab-btn" data-tab="saved">Refeições salvas</button>
+  </div>
+
+  <div class="panel">
+    <div class="api-banner" id="api-banner">
+      Não foi possível falar com o servidor. Confira se o backend está rodando e se
+      a constante <code>API_BASE</code> no topo do arquivo aponta para o endereço certo.
+    </div>
+
+    <!-- PRODUCTS VIEW -->
+    <div class="view active" id="view-products">
+      <h2 class="section-title">Seus produtos</h2>
+      <p class="section-hint">Catálogo público e colaborativo: cada item guarda a informação nutricional por 100 g ou 100 ml, do jeito que aparece no rótulo. Qualquer pessoa pode consultar e adicionar produtos; não é possível remover itens daqui, para evitar que a base seja apagada por engano.</p>
+      <div id="product-list"></div>
+
+      <details class="add-product">
+        <summary>+ adicionar produto manualmente</summary>
+        <div class="form-grid">
+          <div style="grid-column:1/-1">
+            <label class="field-label">nome do produto</label>
+            <input type="text" id="np-nome" placeholder="ex: Queijo mussarela">
+          </div>
+          <div>
+            <label class="field-label">base (100 g ou 100 ml)</label>
+            <select id="np-unidade">
+              <option value="g">100 g</option>
+              <option value="ml">100 ml</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">valor energético (kcal)</label>
+            <input type="number" id="np-kcal" step="any">
+          </div>
+          <div>
+            <label class="field-label">carboidratos (g)</label>
+            <input type="number" id="np-carb" step="any">
+          </div>
+          <div>
+            <label class="field-label">açúcares totais (g)</label>
+            <input type="number" id="np-acuc" step="any">
+          </div>
+          <div>
+            <label class="field-label">açúcares adicionados (g)</label>
+            <input type="number" id="np-acucad" step="any">
+          </div>
+          <div>
+            <label class="field-label">proteínas (g)</label>
+            <input type="number" id="np-prot" step="any">
+          </div>
+          <div>
+            <label class="field-label">gorduras totais (g)</label>
+            <input type="number" id="np-gord" step="any">
+          </div>
+          <div>
+            <label class="field-label">gorduras saturadas (g)</label>
+            <input type="number" id="np-gordsat" step="any">
+          </div>
+          <div>
+            <label class="field-label">gorduras trans (g)</label>
+            <input type="number" id="np-gordtrans" step="any">
+          </div>
+          <div>
+            <label class="field-label">fibras alimentares (g)</label>
+            <input type="number" id="np-fibra" step="any">
+          </div>
+          <div>
+            <label class="field-label">sódio (mg)</label>
+            <input type="number" id="np-sodio" step="any">
+          </div>
+          <div>
+            <label class="field-label">cálcio (mg)</label>
+            <input type="number" id="np-calcio" step="any">
+          </div>
+        </div>
+        <button class="btn navy" style="margin-top:14px" id="btn-add-product">Salvar produto</button>
+        <div class="status-msg" id="np-status"></div>
+      </details>
+    </div>
+
+    <!-- BUILD MEAL VIEW -->
+    <div class="view" id="view-build">
+      <h2 class="section-title">Montar refeição</h2>
+      <p class="section-hint">Escolha um produto, informe a quantidade em gramas ou mililitros, e adicione à refeição. Suas refeições ficam salvas só para você (identificado por este navegador).</p>
+
+      <div class="add-row">
+        <div class="grow">
+          <label class="field-label">produto</label>
+          <select id="bm-product"></select>
+        </div>
+        <div class="qty">
+          <label class="field-label">quantidade</label>
+          <input type="number" id="bm-qty" step="any" placeholder="ex: 200">
+        </div>
+        <button class="btn caramel" id="btn-add-item">Adicionar</button>
+      </div>
+
+      <div id="meal-items" class="meal-items"></div>
+      <div id="meal-totals-wrap"></div>
+
+      <div class="save-row">
+        <div class="grow">
+          <label class="field-label">nome da refeição</label>
+          <input type="text" id="bm-mealname" placeholder="ex: Café da manhã">
+        </div>
+        <button class="btn sage" id="btn-save-meal">Guardar refeição</button>
+      </div>
+      <div class="status-msg" id="bm-status"></div>
+    </div>
+
+    <!-- SAVED MEALS VIEW -->
+    <div class="view" id="view-saved">
+      <h2 class="section-title">Refeições salvas</h2>
+      <p class="section-hint">Refeições típicas que você já montou e guardou, neste navegador.</p>
+      <div id="saved-list"></div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    catálogo de produtos é público (todos consultam e adicionam) · suas refeições
+    ficam só neste navegador, identificadas por um id anônimo local
+  </div>
+</div>
+
+<script>
+(function () {
+  // ------------------------------------------------------------------
+  // Aponte para o endereço onde o backend (main.py) está rodando.
+  // Local: http://localhost:8000/api
+  // Depois de publicado em algum provedor, troque para a URL pública dele.
+  // ------------------------------------------------------------------
+  //const API_BASE = 'http://localhost:8000/api';
+  const API_BASE = 'https://nutri-app-ne3q.onrender.com/api';
+
+  const NUTRIENTS = [
+    { key: 'kcal', label: 'Valor energético (kcal)' },
+    { key: 'carb', label: 'Carboidratos (g)' },
+    { key: 'acuc', label: 'Açúcares totais (g)', sub: true },
+    { key: 'acucad', label: 'Açúcares adicionados (g)', sub: true },
+    { key: 'prot', label: 'Proteínas (g)' },
+    { key: 'gord', label: 'Gorduras totais (g)' },
+    { key: 'gordsat', label: 'Gorduras saturadas (g)', sub: true },
+    { key: 'gordtrans', label: 'Gorduras trans (g)', sub: true },
+    { key: 'fibra', label: 'Fibras alimentares (g)' },
+    { key: 'sodio', label: 'Sódio (mg)' },
+    { key: 'calcio', label: 'Cálcio (mg)' },
+  ];
+
+  let products = [];
+  let mealItems = [];
+  let openMealId = null;
+
+  const root = document.getElementById('nutri-root');
+  const $ = (sel) => root.querySelector(sel);
+  const $$ = (sel) => Array.from(root.querySelectorAll(sel));
+
+  function fmt(n) {
+    if (n === null || n === undefined || isNaN(n)) return '0';
+    const rounded = Math.round(n * 10) / 10;
+    return String(rounded);
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (m) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[m]));
+  }
+
+  function getUserId() {
+    let id = localStorage.getItem('nutri_user_id');
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : 'u-' + Date.now() + '-' + Math.random());
+      localStorage.setItem('nutri_user_id', id);
+    }
+    return id;
+  }
+  const USER_ID = getUserId();
+
+  function showApiError(show) {
+    $('#api-banner').classList.toggle('show', !!show);
+  }
+
+  // ---------- API helpers ----------
+  async function apiGet(path) {
+    const res = await fetch(API_BASE + path);
+    if (!res.ok) throw new Error('GET ' + path + ' -> ' + res.status);
+    showApiError(false);
+    return res.json();
+  }
+  async function apiPost(path, body) {
+    const res = await fetch(API_BASE + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg = (data && data.detail) ? data.detail : ('POST ' + path + ' -> ' + res.status);
+      throw new Error(msg);
+    }
+    showApiError(false);
+    return data;
+  }
+  async function apiDelete(path) {
+    const res = await fetch(API_BASE + path, { method: 'DELETE' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg = (data && data.detail) ? data.detail : ('DELETE ' + path + ' -> ' + res.status);
+      throw new Error(msg);
+    }
+    showApiError(false);
+    return data;
+  }
+
+  // ---------- load ----------
+  async function loadProducts() {
+    products = await apiGet('/products');
+  }
+  async function loadMeals() {
+    return apiGet('/meals?user_id=' + encodeURIComponent(USER_ID));
+  }
+
+  // ---------- render: products ----------
+  function renderProducts() {
+    const list = $('#product-list');
+    if (!products.length) {
+      list.innerHTML = '<div class="empty-note">Nenhum produto cadastrado ainda.</div>';
+      return;
+    }
+    list.innerHTML = products.map(p => `
+      <div class="product-card" data-id="${p.id}">
+        <div class="p-head">
+          <div class="p-name">${escapeHtml(p.nome)}</div>
+          <div class="p-base">por 100 ${p.unidade}</div>
+        </div>
+        <div class="p-nutrients">
+          ${fmt(p.kcal)} kcal · carb ${fmt(p.carb)}g · açúc ${fmt(p.acuc)}g · prot ${fmt(p.prot)}g · gord ${fmt(p.gord)}g (sat ${fmt(p.gordsat)}g) · sódio ${fmt(p.sodio)}mg · cálcio ${fmt(p.calcio)}mg
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderProductSelect() {
+    const sel = $('#bm-product');
+    if (!products.length) {
+      sel.innerHTML = '<option value="">nenhum produto cadastrado</option>';
+      return;
+    }
+    sel.innerHTML = products.map(p =>
+      `<option value="${p.id}">${escapeHtml(p.nome)} (por 100 ${p.unidade})</option>`
+    ).join('');
+  }
+
+  // ---------- add product ----------
+  async function addProduct() {
+    const status = $('#np-status');
+    const nome = $('#np-nome').value.trim();
+    if (!nome) {
+      status.textContent = 'Informe o nome do produto.';
+      status.className = 'status-msg err';
+      return;
+    }
+    const payload = {
+      nome,
+      unidade: $('#np-unidade').value,
+      kcal: parseFloat($('#np-kcal').value) || 0,
+      carb: parseFloat($('#np-carb').value) || 0,
+      acuc: parseFloat($('#np-acuc').value) || 0,
+      acucad: parseFloat($('#np-acucad').value) || 0,
+      prot: parseFloat($('#np-prot').value) || 0,
+      gord: parseFloat($('#np-gord').value) || 0,
+      gordsat: parseFloat($('#np-gordsat').value) || 0,
+      gordtrans: parseFloat($('#np-gordtrans').value) || 0,
+      fibra: parseFloat($('#np-fibra').value) || 0,
+      sodio: parseFloat($('#np-sodio').value) || 0,
+      calcio: parseFloat($('#np-calcio').value) || 0,
+    };
+    try {
+      const created = await apiPost('/products', payload);
+      products.push(created);
+      renderProducts();
+      renderProductSelect();
+      status.textContent = 'Produto salvo.';
+      status.className = 'status-msg';
+      ['np-nome','np-kcal','np-carb','np-acuc','np-acucad','np-prot','np-gord','np-gordsat','np-gordtrans','np-fibra','np-sodio','np-calcio']
+        .forEach(id => $('#' + id).value = '');
+    } catch (e) {
+      status.textContent = e.message || 'Falha ao salvar. Tente novamente.';
+      status.className = 'status-msg err';
+      showApiError(true);
+    }
+  }
+
+  // ---------- meal builder ----------
+  function addMealItem() {
+    const productId = $('#bm-product').value;
+    const qty = parseFloat($('#bm-qty').value);
+    const status = $('#bm-status');
+    if (!productId) {
+      status.textContent = 'Cadastre ou escolha um produto primeiro.';
+      status.className = 'status-msg err';
+      return;
+    }
+    if (!qty || qty <= 0) {
+      status.textContent = 'Informe uma quantidade válida.';
+      status.className = 'status-msg err';
+      return;
+    }
+    mealItems.push({ productId, qty });
+    status.textContent = '';
+    renderMealItems();
+    $('#bm-qty').value = '';
+  }
+
+  function computeTotals(items) {
+    const totals = {};
+    NUTRIENTS.forEach(n => totals[n.key] = 0);
+    items.forEach(item => {
+      const p = products.find(x => x.id === item.productId);
+      if (!p) return;
+      const factor = item.qty / 100;
+      NUTRIENTS.forEach(n => { totals[n.key] += (p[n.key] || 0) * factor; });
+    });
+    return totals;
+  }
+
+  function renderMealItems() {
+    const wrap = $('#meal-items');
+    if (!mealItems.length) {
+      wrap.innerHTML = '<div class="empty-note">Nenhum item adicionado ainda.</div>';
+      $('#meal-totals-wrap').innerHTML = '';
+      return;
+    }
+    wrap.innerHTML = mealItems.map((item, idx) => {
+      const p = products.find(x => x.id === item.productId);
+      const name = p ? p.nome : '(produto removido)';
+      const unit = p ? p.unidade : 'g';
+      return `
+        <div class="meal-item-row">
+          <div>
+            <div class="mi-name">${escapeHtml(name)}</div>
+            <div class="mi-qty">${fmt(item.qty)} ${unit}</div>
+          </div>
+          <button class="mi-remove" data-idx="${idx}" title="remover">&times;</button>
+        </div>`;
+    }).join('');
+
+    $$('.mi-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(e.currentTarget.getAttribute('data-idx'), 10);
+        mealItems.splice(idx, 1);
+        renderMealItems();
+      });
+    });
+
+    const totals = computeTotals(mealItems);
+    $('#meal-totals-wrap').innerHTML = renderTotalsTable(totals, 'Totais da refeição');
+  }
+
+  function renderTotalsTable(totals, title) {
+    const rows = NUTRIENTS.map(n => `
+      <tr class="${n.sub ? 'sub' : ''}">
+        <td>${n.label}</td>
+        <td>${fmt(totals[n.key])}</td>
+      </tr>
+    `).join('');
+    return `
+      <h2 class="section-title" style="margin-top:20px">${title}</h2>
+      <table class="nutri-table">
+        <thead><tr><th>Nutriente</th><th>Total</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  async function saveMeal() {
+    const status = $('#bm-status');
+    const name = $('#bm-mealname').value.trim();
+    if (!mealItems.length) {
+      status.textContent = 'Adicione ao menos um item à refeição.';
+      status.className = 'status-msg err';
+      return;
+    }
+    if (!name) {
+      status.textContent = 'Dê um nome para a refeição.';
+      status.className = 'status-msg err';
+      return;
+    }
+    const itemsSnapshot = mealItems.map(item => {
+      const p = products.find(x => x.id === item.productId);
+      return {
+        productId: item.productId,
+        qty: item.qty,
+        nome: p ? p.nome : '(produto removido)',
+        unidade: p ? p.unidade : 'g',
+      };
+    });
+    const totals = computeTotals(mealItems);
+    try {
+      await apiPost('/meals', { user_id: USER_ID, nome: name, items: itemsSnapshot, totals });
+      status.textContent = 'Refeição guardada em "Refeições salvas".';
+      status.className = 'status-msg';
+      mealItems = [];
+      $('#bm-mealname').value = '';
+      renderMealItems();
+      await renderSaved();
+    } catch (e) {
+      status.textContent = e.message || 'Falha ao guardar a refeição. Tente novamente.';
+      status.className = 'status-msg err';
+      showApiError(true);
+    }
+  }
+
+  // ---------- saved meals ----------
+  async function renderSaved() {
+    const list = $('#saved-list');
+    let meals = [];
+    try {
+      meals = await loadMeals();
+    } catch (e) {
+      showApiError(true);
+      list.innerHTML = '<div class="empty-note">Não foi possível carregar as refeições agora.</div>';
+      return;
+    }
+    if (!meals.length) {
+      list.innerHTML = '<div class="empty-note">Nenhuma refeição guardada ainda. Monte uma em "Nova refeição".</div>';
+      return;
+    }
+    list.innerHTML = meals.map(m => {
+      const date = new Date(m.saved_at || Date.now());
+      const dateStr = date.toLocaleDateString('pt-BR');
+      const itemsHtml = m.items.map(it =>
+        `<div class="mc-item">${escapeHtml(it.nome)} — ${fmt(it.qty)} ${it.unidade}</div>`
+      ).join('');
+      const totalsHtml = renderTotalsTable(m.totals, 'Tabela nutricional');
+      return `
+        <div class="meal-card" data-id="${m.id}">
+          <div class="meal-card-head" data-id="${m.id}">
+            <div>
+              <div class="mc-name">${escapeHtml(m.nome)}</div>
+              <div class="mc-kcal">${dateStr} · ${fmt(m.totals.kcal)} kcal</div>
+            </div>
+            <div class="mc-kcal">${openMealId === m.id ? '▲' : '▼'}</div>
+          </div>
+          <div class="meal-card-body ${openMealId === m.id ? 'open' : ''}">
+            ${itemsHtml}
+            ${totalsHtml}
+            <button class="mc-delete" data-id="${m.id}">excluir refeição</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    $$('.meal-card-head').forEach(h => {
+      h.addEventListener('click', (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        openMealId = openMealId === id ? null : id;
+        renderSaved();
+      });
+    });
+    $$('.mc-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = e.currentTarget.getAttribute('data-id');
+        try {
+          await apiDelete('/meals/' + id + '?user_id=' + encodeURIComponent(USER_ID));
+          if (openMealId === id) openMealId = null;
+          renderSaved();
+        } catch (err) {
+          showApiError(true);
+        }
+      });
+    });
+  }
+
+  // ---------- tabs ----------
+  function switchTab(tab) {
+    $$('.tab-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === tab));
+    $$('.view').forEach(v => v.classList.remove('active'));
+    $('#view-' + tab).classList.add('active');
+    if (tab === 'saved') renderSaved();
+  }
+
+  // ---------- init ----------
+  async function init() {
+    $$('.tab-btn').forEach(b => {
+      b.addEventListener('click', () => switchTab(b.getAttribute('data-tab')));
+    });
+    $('#btn-add-product').addEventListener('click', addProduct);
+    $('#btn-add-item').addEventListener('click', addMealItem);
+    $('#btn-save-meal').addEventListener('click', saveMeal);
+
+    try {
+      await loadProducts();
+    } catch (e) {
+      showApiError(true);
+    }
+    renderProducts();
+    renderProductSelect();
+    renderMealItems();
+    await renderSaved();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
