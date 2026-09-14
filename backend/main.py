@@ -1,31 +1,42 @@
 """
 Despensa & Refeições - backend
 --------------------------------
-API simples em FastAPI + SQLite para guardar:
+API em FastAPI, agora com SQLAlchemy, para funcionar tanto com:
+  - SQLite local (padrão, sem configurar nada - bom para testar na sua máquina)
+  - Postgres em nuvem (Neon, Supabase, etc.) - basta definir a variável de
+    ambiente DATABASE_URL, sem mudar nenhuma linha de código.
+
+Guarda:
   - produtos (catálogo público, só é possível adicionar, não apagar)
   - refeições (privadas por "usuário" - identificado por um id anônimo
     gerado no navegador de quem acessa, guardado em localStorage)
 
-Rodar localmente:
+Rodar localmente (usa SQLite, arquivo nutri.db nesta pasta):
     pip install -r requirements.txt
+    uvicorn main:app --reload --port 8000
+
+Rodar apontando para um Postgres externo:
+    export DATABASE_URL="postgresql://usuario:senha@host/banco?sslmode=require"
     uvicorn main:app --reload --port 8000
 
 A API fica em http://localhost:8000/api
 Documentação automática (Swagger) em http://localhost:8000/docs
 """
 
-import sqlite3
+import os
 import time
 import uuid
 import json
-from contextlib import contextmanager
-from typing import List, Optional, Dict
+from typing import List, Dict
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-DB_PATH = "nutri.db"
+from sqlalchemy import (
+    create_engine, MetaData, Table, Column, String, Float, Text, BigInteger,
+    select, insert, delete, func,
+)
 
 NUTRIENT_FIELDS = [
     "kcal", "carb", "acuc", "acucad", "prot",
@@ -54,56 +65,46 @@ DEFAULT_PRODUCTS = [
 
 # ---------- database setup ----------
 
-@contextmanager
-def get_conn():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
+def _normalize_db_url(url: str) -> str:
+    # Alguns provedores (Neon, Supabase, Heroku antigo) entregam a URL como
+    # "postgres://..." - o SQLAlchemy moderno exige "postgresql://...".
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
+DATABASE_URL = _normalize_db_url(os.environ.get("DATABASE_URL", "sqlite:///nutri.db"))
+
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
+
+metadata = MetaData()
+
+products_table = Table(
+    "products", metadata,
+    Column("id", String, primary_key=True),
+    Column("nome", String, nullable=False),
+    Column("unidade", String, nullable=False),
+    *[Column(f, Float, nullable=False, default=0) for f in NUTRIENT_FIELDS],
+)
+
+meals_table = Table(
+    "meals", metadata,
+    Column("id", String, primary_key=True),
+    Column("user_id", String, nullable=False),
+    Column("nome", String, nullable=False),
+    Column("items_json", Text, nullable=False),
+    Column("totals_json", Text, nullable=False),
+    Column("saved_at", BigInteger, nullable=False),
+)
 
 
 def init_db():
-    with get_conn() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS products (
-                id TEXT PRIMARY KEY,
-                nome TEXT NOT NULL,
-                unidade TEXT NOT NULL,
-                kcal REAL DEFAULT 0,
-                carb REAL DEFAULT 0,
-                acuc REAL DEFAULT 0,
-                acucad REAL DEFAULT 0,
-                prot REAL DEFAULT 0,
-                gord REAL DEFAULT 0,
-                gordsat REAL DEFAULT 0,
-                gordtrans REAL DEFAULT 0,
-                fibra REAL DEFAULT 0,
-                sodio REAL DEFAULT 0,
-                calcio REAL DEFAULT 0
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS meals (
-                id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                nome TEXT NOT NULL,
-                items_json TEXT NOT NULL,
-                totals_json TEXT NOT NULL,
-                saved_at INTEGER NOT NULL
-            )
-        """)
-        count = conn.execute("SELECT COUNT(*) AS c FROM products").fetchone()["c"]
+    metadata.create_all(engine)
+    with engine.begin() as conn:
+        count = conn.execute(select(func.count()).select_from(products_table)).scalar()
         if count == 0:
-            for p in DEFAULT_PRODUCTS:
-                cols = ", ".join(p.keys())
-                placeholders = ", ".join("?" for _ in p)
-                conn.execute(
-                    f"INSERT INTO products ({cols}) VALUES ({placeholders})",
-                    tuple(p.values()),
-                )
+            conn.execute(insert(products_table), DEFAULT_PRODUCTS)
 
 
 # ---------- models ----------
@@ -160,40 +161,34 @@ def on_startup():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "db": "postgres" if not DATABASE_URL.startswith("sqlite") else "sqlite"}
 
 
 # ---- products ----
 
 @app.get("/api/products")
 def list_products():
-    with get_conn() as conn:
-        rows = conn.execute("SELECT * FROM products ORDER BY nome").fetchall()
+    with engine.connect() as conn:
+        rows = conn.execute(select(products_table).order_by(products_table.c.nome)).mappings().all()
         return [dict(r) for r in rows]
 
 
 @app.post("/api/products", status_code=201)
 def create_product(product: ProductIn):
-    with get_conn() as conn:
+    nome = product.nome.strip()
+    with engine.begin() as conn:
         dup = conn.execute(
-            "SELECT id FROM products WHERE LOWER(nome) = LOWER(?)",
-            (product.nome.strip(),),
-        ).fetchone()
+            select(products_table.c.id).where(func.lower(products_table.c.nome) == nome.lower())
+        ).first()
         if dup:
             raise HTTPException(
                 status_code=409,
-                detail=f'Já existe um produto chamado "{product.nome}" no catálogo.',
+                detail=f'Já existe um produto chamado "{nome}" no catálogo.',
             )
-        new_id = "p-" + uuid.uuid4().hex[:12]
-        data = product.dict()
-        data["id"] = new_id
-        data["nome"] = data["nome"].strip()
-        cols = ", ".join(data.keys())
-        placeholders = ", ".join("?" for _ in data)
-        conn.execute(
-            f"INSERT INTO products ({cols}) VALUES ({placeholders})",
-            tuple(data.values()),
-        )
+        data = product.model_dump()
+        data["nome"] = nome
+        data["id"] = "p-" + uuid.uuid4().hex[:12]
+        conn.execute(insert(products_table).values(**data))
         return data
 
 
@@ -206,11 +201,12 @@ def create_product(product: ProductIn):
 
 @app.get("/api/meals")
 def list_meals(user_id: str = Query(...)):
-    with get_conn() as conn:
+    with engine.connect() as conn:
         rows = conn.execute(
-            "SELECT * FROM meals WHERE user_id = ? ORDER BY saved_at DESC",
-            (user_id,),
-        ).fetchall()
+            select(meals_table)
+            .where(meals_table.c.user_id == user_id)
+            .order_by(meals_table.c.saved_at.desc())
+        ).mappings().all()
         result = []
         for r in rows:
             d = dict(r)
@@ -224,28 +220,28 @@ def list_meals(user_id: str = Query(...)):
 def create_meal(meal: MealIn):
     if not meal.items:
         raise HTTPException(status_code=400, detail="A refeição precisa de ao menos um item.")
-    if not meal.nome.strip():
+    nome = meal.nome.strip()
+    if not nome:
         raise HTTPException(status_code=400, detail="Dê um nome para a refeição.")
+
     new_id = "m-" + uuid.uuid4().hex[:12]
     saved_at = int(time.time() * 1000)
-    with get_conn() as conn:
-        conn.execute(
-            "INSERT INTO meals (id, user_id, nome, items_json, totals_json, saved_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                new_id,
-                meal.user_id,
-                meal.nome.strip(),
-                json.dumps([i.dict() for i in meal.items]),
-                json.dumps(meal.totals),
-                saved_at,
-            ),
-        )
+    row = {
+        "id": new_id,
+        "user_id": meal.user_id,
+        "nome": nome,
+        "items_json": json.dumps([i.model_dump() for i in meal.items]),
+        "totals_json": json.dumps(meal.totals),
+        "saved_at": saved_at,
+    }
+    with engine.begin() as conn:
+        conn.execute(insert(meals_table).values(**row))
+
     return {
         "id": new_id,
         "user_id": meal.user_id,
-        "nome": meal.nome.strip(),
-        "items": [i.dict() for i in meal.items],
+        "nome": nome,
+        "items": [i.model_dump() for i in meal.items],
         "totals": meal.totals,
         "saved_at": saved_at,
     }
@@ -253,15 +249,16 @@ def create_meal(meal: MealIn):
 
 @app.delete("/api/meals/{meal_id}")
 def delete_meal(meal_id: str, user_id: str = Query(...)):
-    with get_conn() as conn:
+    with engine.begin() as conn:
         row = conn.execute(
-            "SELECT id FROM meals WHERE id = ? AND user_id = ?",
-            (meal_id, user_id),
-        ).fetchone()
+            select(meals_table.c.id).where(
+                meals_table.c.id == meal_id, meals_table.c.user_id == user_id
+            )
+        ).first()
         if not row:
             raise HTTPException(
                 status_code=404,
                 detail="Refeição não encontrada (ou não pertence a este usuário).",
             )
-        conn.execute("DELETE FROM meals WHERE id = ?", (meal_id,))
+        conn.execute(delete(meals_table).where(meals_table.c.id == meal_id))
     return {"deleted": meal_id}
