@@ -3,7 +3,7 @@ import { DEFAULT_GOALS, MACROS } from '../nutrition.js';
 import * as store from '../store.js';
 import { busy, confirmDialog, openSheet, passwordField, promptDialog, toast, toastError } from '../ui.js';
 import { APP_NAME } from '../config.js';
-import { startGitHubLogin } from '../github.js';
+import { signInWithGitHub } from '../github.js';
 import { openPrivacy } from '../privacy.js';
 import { canInstall, install } from '../pwa.js';
 import { $, $$, esc, fmt, initials, isoDay, loadScript, parseNum, shortDate } from '../util.js';
@@ -399,7 +399,7 @@ export function mount(el, params) {
           openPrivacy();
           break;
         case 'link-github':
-          startGitHubLogin(store.state.config.github_client_id);
+          signInWithGitHub(() => toast('Conta do GitHub vinculada.'));
           break;
         case 'logout':
           if (await confirmDialog({

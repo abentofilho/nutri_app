@@ -57,6 +57,7 @@ js/
   pwa.js, sw.js       instalação no celular
   github.js           login do administrador pelo GitHub
   privacy.js          aviso de privacidade
+privacidade.html      política de privacidade (página pública)
 assets/food/          ícones de alimentos (Fluent Emoji, licença MIT)
 backend/main.py       API (FastAPI + SQLAlchemy)
 backend/tests/        testes (rodam no GitHub a cada push)
@@ -66,17 +67,23 @@ Não tem etapa de build: HTML, CSS e JavaScript publicados direto pelo GitHub Pa
 
 ## Administrador
 
-O administrador é quem entra com a conta do GitHub **abentofilho**. Para ligar o
-login com GitHub, uma vez só:
+O administrador é quem entra com a conta do GitHub **abentofilho**. Não precisa
+configurar nada no servidor:
 
-1. No GitHub: **Settings › Developer settings › OAuth Apps › New OAuth App**.
-   - Application name: `NutriApp`
-   - Homepage URL e Authorization callback URL: `https://abentofilho.github.io/nutri_app/`
-2. Clique em **Register application**, depois em **Generate a new client secret**.
-3. No Render, em **Environment**, crie `GITHUB_CLIENT_ID` e `GITHUB_CLIENT_SECRET`
-   com os dois valores.
-4. No app: **Administrador? Entrar com GitHub** (tela de entrada) ou
-   **Perfil › Vincular GitHub**. A Curadoria aparece no Perfil.
+1. Na tela de entrada, toque em **Continuar com o GitHub** (quem já tem conta no
+   app usa **Perfil › Vincular GitHub**).
+2. O app mostra um código. Toque no botão: ele copia o código e abre o GitHub.
+   Cole o código e autorize.
+3. Volte para o app. A Curadoria aparece no Perfil.
+
+Digite no GitHub só um código que o próprio app mostrou na sua tela, nunca um
+que alguém enviou.
+
+O login usa um OAuth App do GitHub cujo Client ID (público) vem no código. Para
+usar um OAuth App próprio, crie um em **Settings › Developer settings › OAuth
+Apps** com **Enable Device Flow** marcado e coloque o Client ID em
+`GITHUB_CLIENT_ID` no Render. Com `GITHUB_CLIENT_SECRET` também definido, o
+login passa a ser por redirecionamento, sem código.
 
 ## Rodando na sua máquina
 
@@ -108,18 +115,22 @@ pytest
 | Variável | Para quê |
 |---|---|
 | `DATABASE_URL` | O Postgres (já configurado). |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Login com GitHub, usado pelo administrador. |
+| `GITHUB_CLIENT_ID` | Opcional. Troca o OAuth App do login com GitHub (o padrão vem no código). |
+| `GITHUB_CLIENT_SECRET` | Opcional. Troca o login por código pelo redirecionamento. |
 | `ADMIN_GITHUB` | Contas do GitHub administradoras. Padrão: `abentofilho`. |
 | `ADMIN_EMAILS` | Opcional. E-mails administradores; só valem se confirmados pelo Google ou GitHub. |
-| `GOOGLE_CLIENT_ID` | Opcional. Botão "Continuar com o Google". |
+| `GOOGLE_CLIENT_ID` | Opcional. Troca o cliente OAuth do login com Google (o padrão vem no código). |
 | `BREVO_API_KEY` (ou `RESEND_API_KEY`), `MAIL_FROM` | Opcional. Liga os e-mails de confirmação e de nova senha. |
 | `CORS_ORIGINS` | Sites que podem usar a API. Padrão: o GitHub Pages do app e `localhost`. |
 | `HISTORY_DAYS` | Dias guardados no diário. Padrão: 30. |
 
-### Login com Google (opcional)
+### Login com Google
 
-1. Em https://console.cloud.google.com: **APIs e serviços › Credenciais ›
-   Criar credenciais › ID do cliente OAuth** (aplicativo da Web).
+Já vem ligado: o ID do cliente OAuth (público) está no código. Para usar um
+cliente próprio:
+
+1. Em https://console.cloud.google.com: **Google Auth Platform › Clientes ›
+   Criar cliente** (aplicativo da Web).
 2. Em **Origens JavaScript autorizadas**, adicione `https://abentofilho.github.io`.
 3. Copie o ID do cliente para `GOOGLE_CLIENT_ID` no Render.
 

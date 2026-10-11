@@ -17,12 +17,15 @@ O que guarda:
 
 Variáveis de ambiente (todas opcionais):
     DATABASE_URL          postgresql://usuario:senha@host/banco?sslmode=require
-    GITHUB_CLIENT_ID      login com GitHub (OAuth App) - é por ele que o
-    GITHUB_CLIENT_SECRET  administrador entra
+    GITHUB_CLIENT_ID      troca o OAuth App do login com GitHub (o padrão já
+                          vem no código); vazia, desliga esse login
+    GITHUB_CLIENT_SECRET  opcional: sem ele o login é por código digitado no
+                          github.com (device flow); com ele, por redirecionamento
     ADMIN_GITHUB          usuários do GitHub administradores (padrão: abentofilho)
     ADMIN_EMAILS          e-mails administradores; só valem se confirmados pelo
                           Google ou pelo GitHub
-    GOOGLE_CLIENT_ID      habilita o botão "Continuar com o Google"
+    GOOGLE_CLIENT_ID      troca o cliente OAuth do botão "Continuar com o
+                          Google" (o padrão já vem no código); vazia, desliga
     CORS_ORIGINS          sites que podem chamar a API (padrão: o GitHub Pages
                           do app e localhost)
     HISTORY_DAYS          dias guardados no diário (padrão 30)
@@ -113,9 +116,15 @@ def _env_set(name: str, default: str = "") -> set:
 
 ADMIN_EMAILS = _env_set("ADMIN_EMAILS")
 ADMIN_GITHUB = _env_set("ADMIN_GITHUB", "abentofilho")
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "").strip()
+# Apps de login do NutriApp no Google e no GitHub. Os IDs são públicos (aparecem
+# para qualquer pessoa que entra), por isso ficam no código: os dois logins
+# funcionam sem configurar nada no servidor. É pelo GitHub que o administrador
+# entra.
+GOOGLE_CLIENT_ID = os.environ.get(
+    "GOOGLE_CLIENT_ID", "164107022232-6imfi8h3nvp4lio58h1nucf04h1uf8vf.apps.googleusercontent.com").strip()
+GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "Ov23liFIgjI0cLIQxOjX").strip()
 GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "").strip()
+GITHUB_SCOPE = "read:user user:email"
 CORS_ORIGINS = sorted(_env_set(
     "CORS_ORIGINS", "https://abentofilho.github.io,http://localhost:5500,http://127.0.0.1:5500"))
 
@@ -137,10 +146,12 @@ def now_ms() -> int:
 # ---------- database setup ----------
 
 def _normalize_db_url(url: str) -> str:
-    # Alguns provedores (Neon, Supabase, Heroku antigo) entregam a URL como
-    # "postgres://..." - o SQLAlchemy moderno exige "postgresql://...".
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
+    # Os provedores entregam a URL como "postgres://..." ou "postgresql://...".
+    # O driver fica explícito: sem ele, o SQLAlchemy 2.1 procura o psycopg 3,
+    # que não está no requirements.txt, e o servidor não sobe.
+    scheme, _, rest = url.partition("://")
+    if scheme in ("postgres", "postgresql"):
+        return "postgresql+psycopg2://" + rest
     return url
 
 
@@ -565,6 +576,11 @@ class GithubIn(BaseModel):
     legacy_id: Optional[str] = None
 
 
+class GithubDeviceIn(BaseModel):
+    device_code: str = Field(max_length=200)
+    legacy_id: Optional[str] = None
+
+
 class TransferIn(BaseModel):
     code: str = Field(max_length=20)
 
@@ -844,6 +860,7 @@ class _Throttle:
 login_throttle = _Throttle(limit=8, window_s=900)
 transfer_throttle = _Throttle(limit=10, window_s=900)
 signup_throttle = _Throttle(limit=15, window_s=3600)
+github_throttle = _Throttle(limit=10, window_s=900)
 mail_ip_throttle = _Throttle(limit=10, window_s=3600)
 mail_address_throttle = _Throttle(limit=3, window_s=3600)
 
@@ -976,7 +993,9 @@ def health():
 def config():
     return {
         "google_client_id": GOOGLE_CLIENT_ID or None,
-        "github_client_id": GITHUB_CLIENT_ID if GITHUB_CLIENT_SECRET else None,
+        "github_client_id": GITHUB_CLIENT_ID or None,
+        # sem o segredo no servidor, o login é pelo código digitado no github.com
+        "github_device_flow": bool(GITHUB_CLIENT_ID and not GITHUB_CLIENT_SECRET),
         "email_enabled": mail_enabled(),
         "history_days": HISTORY_DAYS,
     }
@@ -1046,28 +1065,74 @@ def google_login(body: GoogleIn, current: Optional[dict] = Depends(optional_user
             current=current, legacy_id=body.legacy_id)
 
 
-def _github_identity(code: str, redirect_uri: str) -> dict:
-    """Troca o código do OAuth do GitHub pelos dados da conta."""
+def _github_post(url: str, data: dict) -> dict:
     import requests
 
     try:
-        token = requests.post(
-            "https://github.com/login/oauth/access_token",
-            data={"client_id": GITHUB_CLIENT_ID, "client_secret": GITHUB_CLIENT_SECRET,
-                  "code": code, "redirect_uri": redirect_uri},
-            headers={"Accept": "application/json"}, timeout=10,
-        ).json().get("access_token")
-        if not token:
-            raise HTTPException(status_code=401, detail="O GitHub não confirmou o login. Tente de novo.")
-        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+        return requests.post(url, data={"client_id": GITHUB_CLIENT_ID, **data},
+                             headers={"Accept": "application/json"}, timeout=10).json()
+    except (requests.RequestException, ValueError):
+        raise HTTPException(status_code=502, detail="Não foi possível falar com o GitHub agora.")
+
+
+def _github_profile(token: str) -> dict:
+    import requests
+
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    try:
         user = requests.get("https://api.github.com/user", headers=headers, timeout=10).json()
         emails = requests.get("https://api.github.com/user/emails", headers=headers, timeout=10)
         emails = emails.json() if emails.ok else []
-    except requests.RequestException:
+    except (requests.RequestException, ValueError):
         raise HTTPException(status_code=502, detail="Não foi possível falar com o GitHub agora.")
+    if "id" not in user:
+        raise HTTPException(status_code=401, detail="O GitHub não confirmou o login. Tente de novo.")
     primary = next((e["email"] for e in emails if e.get("primary") and e.get("verified")), None)
     return {"id": str(user["id"]), "login": user["login"], "name": user.get("name") or user["login"],
             "email": primary.lower() if primary else None}
+
+
+def _github_identity(code: str, redirect_uri: str) -> dict:
+    """Troca o código do OAuth do GitHub pelos dados da conta."""
+    token = _github_post("https://github.com/login/oauth/access_token", {
+        "client_secret": GITHUB_CLIENT_SECRET, "code": code, "redirect_uri": redirect_uri}).get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="O GitHub não confirmou o login. Tente de novo.")
+    return _github_profile(token)
+
+
+def _github_device_start() -> dict:
+    """Pede ao GitHub um código para a pessoa digitar em github.com/login/device."""
+    res = _github_post("https://github.com/login/device/code", {"scope": GITHUB_SCOPE})
+    if not res.get("device_code"):
+        log.warning("GitHub recusou o login por código: %s", res.get("error"))
+        raise HTTPException(status_code=502, detail="O login com GitHub não está disponível agora.")
+    return {"device_code": res["device_code"], "user_code": res["user_code"],
+            "verification_uri": res.get("verification_uri") or "https://github.com/login/device",
+            "interval": int(res.get("interval") or 5), "expires_in": int(res.get("expires_in") or 900)}
+
+
+def _github_device_identity(device_code: str) -> dict:
+    """Dados da conta quando a pessoa já digitou o código; antes disso,
+    {"pending": True} (com o novo intervalo, se o GitHub pedir mais calma)."""
+    res = _github_post("https://github.com/login/oauth/access_token", {
+        "device_code": device_code, "grant_type": "urn:ietf:params:oauth:grant-type:device_code"})
+    if res.get("access_token"):
+        return _github_profile(res["access_token"])
+    error = res.get("error")
+    if error in ("authorization_pending", "slow_down"):
+        return {"pending": True, "interval": res.get("interval")}
+    if error == "access_denied":
+        raise HTTPException(status_code=401, detail="Login com GitHub cancelado.")
+    raise HTTPException(status_code=410, detail="O código expirou. Peça um novo.")
+
+
+def _github_login(info: dict, current: Optional[dict], legacy_id: Optional[str]) -> dict:
+    with engine.begin() as conn:
+        return _external_login(
+            conn, provider="github", external_id=info["id"], email=info["email"],
+            nome=info["name"].split(" ")[0], current=current, legacy_id=legacy_id,
+            extra={"github_login": info["login"]})
 
 
 @app.post("/api/auth/github")
@@ -1077,12 +1142,29 @@ def github_login(body: GithubIn, current: Optional[dict] = Depends(optional_user
     redirect = urlparse(body.redirect_uri)
     if f"{redirect.scheme}://{redirect.netloc}".lower() not in CORS_ORIGINS:
         raise HTTPException(status_code=400, detail="Endereço de retorno não permitido.")
-    info = _github_identity(body.code, body.redirect_uri)
-    with engine.begin() as conn:
-        return _external_login(
-            conn, provider="github", external_id=info["id"], email=info["email"],
-            nome=info["name"].split(" ")[0], current=current, legacy_id=body.legacy_id,
-            extra={"github_login": info["login"]})
+    return _github_login(_github_identity(body.code, body.redirect_uri), current, body.legacy_id)
+
+
+# Login pelo código (device flow): não precisa de segredo no servidor. O app
+# mostra um código, a pessoa digita em github.com/login/device e o app pergunta
+# de tempos em tempos se ela já confirmou.
+@app.post("/api/auth/github/device")
+def github_device_start(request: Request):
+    if not GITHUB_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Login com GitHub não está configurado.")
+    github_throttle.check(client_ip(request))
+    github_throttle.fail(client_ip(request))
+    return _github_device_start()
+
+
+@app.post("/api/auth/github/device/poll")
+def github_device_poll(body: GithubDeviceIn, current: Optional[dict] = Depends(optional_user)):
+    if not GITHUB_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Login com GitHub não está configurado.")
+    info = _github_device_identity(body.device_code)
+    if info.get("pending"):
+        return info
+    return _github_login(info, current, body.legacy_id)
 
 
 @app.post("/api/auth/transfer")

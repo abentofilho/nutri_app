@@ -1,11 +1,12 @@
 import { LOGO, icon } from '../icons.js';
 import * as store from '../store.js';
 import { busy, passwordField } from '../ui.js';
-import { startGitHubLogin } from '../github.js';
+import { signInWithGitHub } from '../github.js';
 import { openPrivacy } from '../privacy.js';
 import { $, esc, loadScript } from '../util.js';
 
 const GOOGLE_LIB = 'https://accounts.google.com/gsi/client';
+const GITHUB_MARK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>';
 
 const MODES = [
   { key: 'criar', label: 'Criar conta' },
@@ -40,7 +41,8 @@ export function showWelcome(root, { onDone, onCancel, code = '', resetToken = ''
         <div class="card">
           <div class="social">
             <div class="gsi-slot" hidden></div>
-            <div class="divider gsi-divider" hidden>ou</div>
+            <button class="social-btn" data-act="github" hidden>${GITHUB_MARK}<span>Continuar com o GitHub</span></button>
+            <div class="divider social-divider" hidden>ou</div>
           </div>
           <div class="seg mode-seg" role="tablist" style="margin-bottom:14px;justify-content:center"></div>
           <div class="mode-body"></div>
@@ -49,7 +51,6 @@ export function showWelcome(root, { onDone, onCancel, code = '', resetToken = ''
         <div class="welcome-links">
           <button class="link-btn code-link" data-mode="codigo">${icon('phone')}Tenho um código de outro aparelho</button>
           <button class="link-btn subtle" data-act="privacy">Privacidade</button>
-          <button class="link-btn subtle" data-act="github" hidden>${icon('shield')}Administrador? Entrar com GitHub</button>
         </div>
       </div>
     </div>`;
@@ -135,7 +136,7 @@ export function showWelcome(root, { onDone, onCancel, code = '', resetToken = ''
       mode = m.dataset.mode;
       paint();
     }
-    if (e.target.closest('[data-act=github]')) startGitHubLogin(config.github_client_id);
+    if (e.target.closest('[data-act=github]')) signInWithGitHub(onDone);
     if (e.target.closest('[data-act=privacy]')) openPrivacy();
     if (e.target.closest('[data-act=cancel-reset]')) {
       if (onCancel) onCancel();
@@ -190,6 +191,7 @@ export function showWelcome(root, { onDone, onCancel, code = '', resetToken = ''
   paint();
   setupGoogle(root, (credential) => run($('.gsi-slot', root), () => store.loginWithGoogle(credential)));
   $('[data-act=github]', root).hidden = !config.github_client_id;
+  $('.social-divider', root).hidden = !config.github_client_id;
   if (code) {
     const f = $('[data-form=code]', root);
     run($('button', f), () => store.redeemTransfer(f.code.value));
@@ -204,7 +206,7 @@ async function setupGoogle(root, onCredential) {
     const slot = $('.gsi-slot', root);
     if (!slot) return;
     slot.hidden = false;
-    $('.gsi-divider', root).hidden = false;
+    $('.social-divider', root).hidden = false;
     window.google.accounts.id.initialize({ client_id: clientId, callback: (r) => onCredential(r.credential) });
     window.google.accounts.id.renderButton(slot, {
       theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', locale: 'pt-BR',

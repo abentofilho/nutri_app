@@ -98,6 +98,7 @@ export async function refreshAll() {
 async function authenticate(path, body) {
   const legacy = localStorage.getItem(LEGACY_KEY);
   const res = await api(path, { method: 'POST', body: { ...body, legacy_id: legacy || undefined } });
+  if (res.pending) return res;      // login por código do GitHub: a pessoa ainda não confirmou
   setToken(res.token);
   state.user = res.user;
   state.loaded = false;
@@ -116,6 +117,8 @@ export const enterAsGuest = (nome) => authenticate('/auth/guest', { nome });
 export const loginWithGoogle = (credential) => authenticate('/auth/google', { credential });
 // Com sessão aberta, o backend vincula o GitHub à conta atual em vez de trocar de conta.
 export const loginWithGitHub = (code, redirectUri) => authenticate('/auth/github', { code, redirect_uri: redirectUri });
+export const startGitHubDevice = () => api('/auth/github/device', { method: 'POST' });
+export const pollGitHubDevice = (deviceCode) => authenticate('/auth/github/device/poll', { device_code: deviceCode });
 export const redeemTransfer = (code) => authenticate('/auth/transfer', { code });
 
 export async function logout() {

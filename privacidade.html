@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; base-uri 'self'">
+<title>Política de privacidade · NutriApp</title>
+<meta name="description" content="O que o NutriApp guarda, para que usa e como excluir seus dados.">
+<meta name="theme-color" content="#f3ece0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1713" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" href="assets/icons/favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .policy { max-width: 640px; margin: 0 auto; padding: calc(32px + var(--safe-t)) 20px calc(40px + var(--safe-b)); }
+  .policy-brand { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; font-family: var(--serif); font-size: 20px; font-weight: 700; }
+  .policy-brand img { width: 36px; height: 36px; border-radius: 9px; }
+  .policy h1 { font-family: var(--serif); font-size: 30px; line-height: 1.15; margin: 28px 0 4px; }
+  .policy .prose { margin-top: 20px; font-size: 16px; }
+</style>
+</head>
+<body>
+<!-- O mesmo texto do aviso dentro do app (js/privacy.js). Ao mudar um, mude o outro. -->
+<main class="policy">
+  <a class="policy-brand" href="./"><img src="assets/icons/icon-192.png" alt="">NutriApp</a>
+  <h1>Política de privacidade</h1>
+  <p class="faint">Vale para o app em abentofilho.github.io/nutri_app.</p>
+  <div class="prose">
+    <h3>O que guardamos</h3>
+    <p>Seu nome, e-mail (se criar conta), o que você registra no diário, a água,
+    suas metas, seus produtos e receitas. Com login pelo Google ou GitHub,
+    recebemos só o nome e o e-mail confirmado.</p>
+    <h3>Para que</h3>
+    <p>Só para o app funcionar e mostrar seus dados em qualquer aparelho. Não
+    vendemos, não compartilhamos e não usamos para publicidade.</p>
+    <h3>Por quanto tempo</h3>
+    <p>O diário guarda os últimos 30 dias; o que for mais antigo é apagado
+    automaticamente. O resto fica até você excluir.</p>
+    <h3>Fotos e câmera</h3>
+    <p>A leitura de código de barras e da tabela nutricional acontece no seu
+    aparelho. As fotos não são enviadas nem guardadas. Para produtos que não
+    estão no catálogo, o código de barras é consultado no Open Food Facts.</p>
+    <h3>Seus direitos</h3>
+    <p>Você pode baixar seus dados (Histórico › Planilha) e excluir a conta a
+    qualquer momento (Perfil › Excluir conta), o que apaga tudo de forma
+    definitiva. Sugestões já aprovadas continuam no catálogo, sem seu nome.</p>
+    <h3>Segurança</h3>
+    <p>Senhas são guardadas com criptografia de mão única e a conexão é sempre
+    protegida (HTTPS).</p>
+    <h3>Contato</h3>
+    <p>Dúvidas ou pedidos sobre seus dados: abra um chamado em
+    <a href="https://github.com/abentofilho/nutri_app/issues" rel="noopener">github.com/abentofilho/nutri_app</a>.</p>
+    <p class="faint">Este app dá estimativas a partir dos rótulos e não substitui
+    a orientação de um nutricionista ou médico.</p>
+  </div>
+  <p style="margin-top:28px"><a class="btn primary" href="./">Abrir o NutriApp</a></p>
+</main>
+</body>
+</html>

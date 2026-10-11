@@ -1,4 +1,5 @@
 // Aviso de privacidade (LGPD), aberto da tela de entrada e do Perfil.
+// O mesmo texto está em privacidade.html, a página pública. Ao mudar um, mude o outro.
 
 import { APP_NAME } from './config.js';
 import { openSheet } from './ui.js';
@@ -31,6 +32,9 @@ export function openPrivacy() {
         <h3>Segurança</h3>
         <p>Senhas são guardadas com criptografia de mão única e a conexão é sempre
         protegida (HTTPS).</p>
+        <h3>Contato</h3>
+        <p>Dúvidas ou pedidos sobre seus dados: abra um chamado em
+        <a href="https://github.com/abentofilho/nutri_app/issues" target="_blank" rel="noopener">github.com/abentofilho/nutri_app</a>.</p>
         <p class="faint">Este app dá estimativas a partir dos rótulos e não substitui
         a orientação de um nutricionista ou médico.</p>
       </div>`,

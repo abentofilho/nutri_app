@@ -335,6 +335,56 @@ def test_github_redirect_must_be_an_allowed_origin(client):
     assert res.status_code == 400
 
 
+def test_database_url_names_the_installed_driver():
+    # Sem o driver na URL, o SQLAlchemy 2.1 procura o psycopg 3 e o servidor não sobe no Render.
+    import main
+    for url in ("postgres://u:p@host/db?sslmode=require", "postgresql://u:p@host/db?sslmode=require"):
+        assert main._normalize_db_url(url) == "postgresql+psycopg2://u:p@host/db?sslmode=require"
+    assert main._normalize_db_url("sqlite:///nutri.db") == "sqlite:///nutri.db"
+
+
+def test_github_login_by_code(client, monkeypatch):
+    import main
+    # Só com o ID (sem o segredo), o servidor oferece o login por código.
+    assert client.get("/api/config").json()["github_device_flow"] is False
+    monkeypatch.setattr(main, "GITHUB_CLIENT_SECRET", "")
+    assert client.get("/api/config").json()["github_device_flow"] is True
+
+    answers = {"https://github.com/login/device/code": {
+        "device_code": "dev-1", "user_code": "WDJB-MJHT", "verification_uri": "https://github.com/login/device",
+        "interval": 5, "expires_in": 900}}
+    monkeypatch.setattr(main, "_github_post", lambda url, data: answers[url])
+    monkeypatch.setattr(main, "_github_profile", lambda token: {
+        "id": "1001", "login": "abentofilho", "name": "Antônio Bento", "email": "antonio@exemplo.com"})
+    token_url = "https://github.com/login/oauth/access_token"
+
+    started = client.post("/api/auth/github/device").json()
+    assert started["user_code"] == "WDJB-MJHT" and started["interval"] == 5
+
+    answers[token_url] = {"error": "authorization_pending"}
+    waiting = client.post("/api/auth/github/device/poll", json={"device_code": "dev-1"})
+    assert waiting.status_code == 200 and waiting.json()["pending"] is True and "token" not in waiting.json()
+    answers[token_url] = {"error": "slow_down", "interval": 10}
+    assert client.post("/api/auth/github/device/poll", json={"device_code": "dev-1"}).json()["interval"] == 10
+
+    answers[token_url] = {"access_token": "gho_teste"}
+    done = client.post("/api/auth/github/device/poll", json={"device_code": "dev-1"}).json()
+    assert done["token"] and done["user"]["is_admin"] is True and done["user"]["github_login"] == "abentofilho"
+
+    answers[token_url] = {"error": "access_denied"}
+    assert client.post("/api/auth/github/device/poll", json={"device_code": "dev-1"}).status_code == 401
+    answers[token_url] = {"error": "expired_token"}
+    assert client.post("/api/auth/github/device/poll", json={"device_code": "dev-1"}).status_code == 410
+
+
+def test_github_code_login_needs_the_client_id(client, monkeypatch):
+    import main
+    monkeypatch.setattr(main, "GITHUB_CLIENT_ID", "")
+    assert client.get("/api/config").json()["github_client_id"] is None
+    assert client.post("/api/auth/github/device").status_code == 501
+    assert client.post("/api/auth/github/device/poll", json={"device_code": "x"}).status_code == 501
+
+
 def test_cors_only_for_known_origins(client):
     ok = client.get("/api/health", headers={"Origin": "https://abentofilho.github.io"})
     assert ok.headers.get("access-control-allow-origin") == "https://abentofilho.github.io"

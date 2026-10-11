@@ -5,8 +5,8 @@ import tempfile
 import pytest
 from sqlalchemy import MetaData, create_engine, text
 
-# O banco é preparado antes de importar main.py, no formato exato da v1, para
-# os testes cobrirem também a migração de quem já usa o app. Por padrão usa um
+# O banco é preparado antes de o app subir, no formato exato da v1, para os
+# testes cobrirem também a migração de quem já usa o app. Por padrão usa um
 # SQLite temporário; no CI, TEST_DATABASE_URL aponta para um Postgres de verdade.
 DB_URL = os.environ.get("TEST_DATABASE_URL") or "sqlite:///" + os.path.join(tempfile.mkdtemp(), "nutri_test.db")
 os.environ["DATABASE_URL"] = DB_URL
@@ -14,7 +14,12 @@ os.environ["ADMIN_EMAILS"] = "antonio@exemplo.com"
 os.environ["ADMIN_GITHUB"] = "abentofilho"
 os.environ["GITHUB_CLIENT_ID"] = "github-teste"
 os.environ["GITHUB_CLIENT_SECRET"] = "segredo-teste"
-os.environ.pop("GOOGLE_CLIENT_ID", None)
+os.environ["GOOGLE_CLIENT_ID"] = ""
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from fastapi.testclient import TestClient  # noqa: E402
+import main  # noqa: E402
 
 LEGACY_USER = "36ef23f6-0607-4f01-84f9-533602724d52"
 
@@ -48,7 +53,8 @@ V1_PRODUCTS = [
 
 
 def _build_v1_database():
-    engine = create_engine(DB_URL)
+    # main.DATABASE_URL é a mesma URL, já com o driver que o servidor usa.
+    engine = create_engine(main.DATABASE_URL)
     with engine.begin() as conn:
         meta = MetaData()
         meta.reflect(bind=conn)
@@ -67,11 +73,6 @@ def _build_v1_database():
 
 
 _build_v1_database()
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from fastapi.testclient import TestClient  # noqa: E402
-import main  # noqa: E402
 
 
 # Os testes criam muitas contas do mesmo "IP"; o limite real é testado à parte.

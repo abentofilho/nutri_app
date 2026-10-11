@@ -634,6 +634,7 @@ img { max-width: 100%; display: block; }
   text-align: center; padding: 14px; border-radius: var(--radius-sm);
   background: var(--paper-2); border: 1.5px dashed var(--line-2);
 }
+.device-wait { margin: 18px 0 0; text-align: center; font-size: 13.5px; }
 .qr-box { display: grid; place-items: center; padding: 12px; }
 .qr-box canvas, .qr-box img { width: 184px !important; height: 184px !important; image-rendering: pixelated; border-radius: 8px; background: #fff; padding: 8px; }
 
@@ -774,7 +775,7 @@ body.sheet-open .toasts { bottom: calc(var(--safe-b) + 90px); }
 
 /* ---------- entrada ---------- */
 
-.welcome { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: calc(28px + var(--safe-t)) 16px calc(28px + var(--safe-b)); }
+.welcome { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: calc(28px + var(--safe-t)) 16px calc(28px + var(--safe-b)); }
 .welcome-inner { width: 100%; max-width: 420px; }
 .welcome-brand { text-align: center; }
 .welcome-brand svg { width: 76px; height: 76px; margin: 0 auto 14px; display: block; filter: drop-shadow(0 12px 18px rgba(44, 90, 61, 0.3)); }
@@ -785,12 +786,23 @@ body.sheet-open .toasts { bottom: calc(var(--safe-b) + 90px); }
 .welcome .card { padding: 20px; margin-top: 22px; }
 .divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; font-size: 12.5px; color: var(--ink-3); }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-.welcome-links { display: grid; justify-items: center; gap: 10px; margin-top: 18px; font-size: 14px; }
+.welcome-links { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 10px; margin-top: 18px; font-size: 14px; }
 .link-btn { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 4px; color: var(--sage-d); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .link-btn.subtle { color: var(--ink-3); font-weight: 500; font-size: 13px; }
 .form-error { color: var(--danger); font-size: 14px; margin: 10px 0 0; }
 .form-error:empty { display: none; }
+.social { display: grid; gap: 10px; }
+.social .divider { margin: 6px 0 16px; }
 .gsi-slot { display: flex; justify-content: center; min-height: 44px; }
+/* mesmo desenho do botão do Google, que fica branco também no tema escuro */
+.social-btn {
+  position: relative; width: 100%; max-width: 360px; height: 40px; margin: 0 auto; padding: 0 44px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid #dadce0; border-radius: 999px; background: #fff; color: #3c4043;
+  font-size: 14px; font-weight: 500; letter-spacing: 0.01em;
+}
+.social-btn:hover { background: #f8fafe; border-color: #d2e3fc; }
+.social-btn svg { position: absolute; left: 12px; width: 19px; height: 19px; color: #1f2328; }
 
 /* ---------- carregando ---------- */
 
@@ -894,6 +906,7 @@ body.sheet-open .toasts { bottom: calc(var(--safe-b) + 90px); }
 .prose h3 { font-family: var(--serif); font-size: 17px; margin: 18px 0 4px; }
 .prose h3:first-child { margin-top: 4px; }
 .prose p { margin: 0 0 8px; color: var(--ink-2); }
+.prose a { color: var(--sage-d); text-underline-offset: 3px; }
 .credits .link-btn { font-size: 13px; padding: 0; }
 
 /* ---------- senha e telas de e-mail ---------- */
