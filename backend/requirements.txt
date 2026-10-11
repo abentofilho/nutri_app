@@ -3,3 +3,5 @@ uvicorn[standard]>=0.29
 pydantic>=2.5
 sqlalchemy>=2.0
 psycopg2-binary>=2.9
+google-auth>=2.20
+requests>=2.31

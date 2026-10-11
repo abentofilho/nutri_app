@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# banco SQLite local (testes na máquina)
+*.db
+
+# editores / ferramentas
+.vscode/
+.idea/

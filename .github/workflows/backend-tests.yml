@@ -1,0 +1,47 @@
+# Roda os testes do backend em SQLite e em Postgres (o mesmo banco do Render)
+# a cada push e pull request que mexa na pasta backend.
+name: Backend tests
+
+on:
+  push:
+    paths: ["backend/**", ".github/workflows/backend-tests.yml"]
+  pull_request:
+    paths: ["backend/**", ".github/workflows/backend-tests.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nutri
+          POSTGRES_PASSWORD: nutri
+          POSTGRES_DB: nutri_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - name: SQLite
+        run: pytest -q
+      - name: Postgres
+        run: pytest -q
+        env:
+          TEST_DATABASE_URL: postgresql://nutri:nutri@localhost:5432/nutri_test

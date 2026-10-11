@@ -1,0 +1,5 @@
+# O GitHub Pages publica só o front-end (index.html, css, js, assets).
+exclude:
+  - backend
+  - docs
+  - README.md
